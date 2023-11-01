@@ -16,6 +16,7 @@ locals {
   prefix = "${var.prefix}-${var.timestamp}-${var.suffix}"
   services = [
     # trimmed down list of services, to be extended as needed
+    "bigquery.googleapis.com",
     "cloudbuild.googleapis.com",
     "cloudfunctions.googleapis.com",
     "cloudresourcemanager.googleapis.com",
@@ -85,6 +86,7 @@ resource "local_file" "terraform_tfvars" {
     organization_id    = var.organization_id
     folder_id          = google_folder.folder.folder_id
     prefix             = local.prefix
+    group_email        = var.group_email
     project_id         = google_project.project.project_id
     region             = var.region
     service_account = {

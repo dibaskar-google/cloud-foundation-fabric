@@ -22,6 +22,13 @@ COUNT_TEST_RE = re.compile(r'# tftest +modules=(\d+) +resources=(\d+)' +
                            r'(?: +files=([\w@,_-]+))?' +
                            r'(?: +inventory=([\w\-.]+))?')
 
+def prepare_files(example, test_path, line):
+  if line is not None:
+    requested_files = line.split(',')
+    for f in requested_files:
+      destination = test_path / example.files[f].path
+      destination.parent.mkdir(parents=True, exist_ok=True)
+      destination.write_text(example.files[f].content)
 
 def test_example(plan_validator, tmp_path, example):
   if match := COUNT_TEST_RE.search(example.code):
@@ -42,6 +49,7 @@ def test_example(plan_validator, tmp_path, example):
         destination = tmp_path / example.files[f].path
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(example.files[f].content)
+    prepare_files(example, tmp_path, match.group(3))
 
     inventory = []
     if match.group(4) is not None:

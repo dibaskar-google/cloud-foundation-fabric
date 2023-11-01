@@ -19,8 +19,8 @@ variable "bucket" {
 }
 
 variable "billing_account_id" {
-  default = "123456-123456-123456"
-}
+     default = "123456-123456-123456"
+ }
 
 variable "kms_key" {
   default = {
@@ -33,6 +33,10 @@ variable "organization_id" {
 }
 
 variable "folder_id" {
+  default = "folders/1122334455"
+}
+
+variable "parent" {
   default = "folders/1122334455"
 }
 
