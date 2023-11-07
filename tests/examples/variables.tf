@@ -48,6 +48,10 @@ variable "region" {
   default = "region"
 }
 
+variable "group_email" {
+   default = "group_email"
+}
+
 variable "service_account" {
   default = {
     id        = "service_account_id"
@@ -89,4 +93,5 @@ variable "vpc2" {
 
 variable "zone" {
   default = "zone"
-}
+} 
+
