@@ -18,7 +18,7 @@
 
 # source repository
 
-module "branch-teams-team-cicd-repo" {
+module "branch-prod-team-cicd-repo" {
   source = "../../../modules/source-repository"
   for_each = {
     for k, v in coalesce(local.team_cicd_repositories, {}) : k => v
@@ -27,14 +27,14 @@ module "branch-teams-team-cicd-repo" {
   project_id = var.automation.project_id
   name       = each.value.cicd.name
   iam = {
-    "roles/source.admin"  = [module.branch-teams-team-sa[each.key].iam_email]
-    "roles/source.reader" = [module.branch-teams-team-sa-cicd[each.key].iam_email]
+    "roles/source.admin"  = [module.branch-prod-team-sa[each.key].iam_email]
+    "roles/source.reader" = [module.branch-prod-team-sa-cicd[each.key].iam_email]
   }
   triggers = {
-    "fast-03-team-${each.key}" = {
+    "fast-03-prod-${each.key}" = {
       filename        = ".cloudbuild/workflow.yaml"
       included_files  = ["**/*tf", ".cloudbuild/workflow.yaml"]
-      service_account = module.branch-teams-team-sa-cicd[each.key].id
+      service_account = module.branch-prod-team-sa-cicd[each.key].id
       substitutions   = {}
       template = {
         project_id  = null
@@ -44,12 +44,12 @@ module "branch-teams-team-cicd-repo" {
       }
     }
   }
-  depends_on = [module.branch-teams-team-sa-cicd]
+  depends_on = [module.branch-prod-team-sa-cicd]
 }
 
 # SA used by CI/CD workflows to impersonate automation SAs
 
-module "branch-teams-team-sa-cicd" {
+module "branch-prod-team-sa-cicd" {
   source = "../../../modules/iam-service-account"
   for_each = (
     try(local.team_cicd_repositories, null) != null

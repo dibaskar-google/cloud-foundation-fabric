@@ -132,20 +132,25 @@ locals {
       networking-prod    = try(module.branch-network-prod-folder.id, null)
       sandbox            = try(module.branch-sandbox-folder.0.id, null)
       security           = try(module.branch-security-folder.id, null)
-      teams              = try(module.branch-teams-folder.0.id, null)
+      prod-teams              = try(module.branch-prod-folder.0.id, null)
+      dev-teams              = try(module.branch-dev-folder.0.id, null)
     },
     {
-      for k, v in module.branch-teams-team-folder :
+      for k, v in module.branch-prod-team-folder :
       "team-${k}" => v.id
     },
     {
-      for k, v in module.branch-teams-team-dev-folder :
-      "team-${k}-dev" => v.id
+      for k, v in module.branch-dev-team-folder :
+      "team-${k}" => v.id
     },
-    {
-      for k, v in module.branch-teams-team-prod-folder :
-      "team-${k}-prod" => v.id
-    }
+    #{
+    #   for k, v in module.branch-teams-team-dev-folder :
+    #   "team-${k}-dev" => v.id
+    # },
+    # {
+    #   for k, v in module.branch-teams-team-prod-folder :
+    #   "team-${k}-prod" => v.id
+    # }
   )
   providers = merge(
     {
@@ -262,19 +267,36 @@ locals {
     },
     !var.fast_features.teams ? {} : merge(
       {
-        "3-teams" = templatefile(local._tpl_providers, {
+        "3-prod" = templatefile(local._tpl_providers, {
           backend_extra = null
-          bucket        = module.branch-teams-gcs.0.name
+          bucket        = module.branch-prod-gcs.0.name
           name          = "teams"
-          sa            = module.branch-teams-sa.0.email
+          sa            = module.branch-prod-sa.0.email
         })
       },
       {
-        for k, v in module.branch-teams-team-sa :
-        "3-teams-${k}" => templatefile(local._tpl_providers, {
+        "3-dev" = templatefile(local._tpl_providers, {
           backend_extra = null
-          bucket        = module.branch-teams-team-gcs[k].name
+          bucket        = module.branch-dev-gcs.0.name
           name          = "teams"
+          sa            = module.branch-dev-sa.0.email
+        })
+      },
+      {
+        for k, v in module.branch-prod-team-sa :
+        "3-prod-${k}" => templatefile(local._tpl_providers, {
+          backend_extra = null
+          bucket        = module.branch-prod-team-gcs[k].name
+          name          = "prod"
+          sa            = v.email
+        })
+      },
+      {
+        for k, v in module.branch-dev-team-sa :
+        "3-dev-${k}" => templatefile(local._tpl_providers, {
+          backend_extra = null
+          bucket        = module.branch-dev-team-gcs[k].name
+          name          = "dev"
           sa            = v.email
         })
       }
@@ -299,10 +321,14 @@ locals {
       sandbox                = try(module.branch-sandbox-sa.0.email, null)
       security               = module.branch-security-sa.email
       security-r             = module.branch-security-r-sa.email
-      teams                  = try(module.branch-teams-sa.0.email, null)
+      prod-teams                  = try(module.branch-prod-sa.0.iam_email, null)
+      dev-teams                   = try(module.branch-dev-sa.0.iam_email, null)
     },
     {
-      for k, v in module.branch-teams-team-sa : "team-${k}" => v.email
+      for k, v in module.branch-prod-team-sa : "prod-${k}" => v.email
+    },
+    {
+      for k, v in module.branch-dev-team-sa : "dev-${k}" => v.email
     },
   )
   team_cicd_workflows = {
@@ -319,7 +345,7 @@ locals {
   }
   team_cicd_workflow_attrs = {
     for k, v in local.team_cicd_repositories : k => {
-      service_account   = try(module.branch-teams-team-sa-cicd[k].email, null)
+      service_account   = try(module.branch-prod-team-sa-cicd[k].email, null)
       tf_providers_file = "3-teams-${k}-providers.tf"
       tf_var_files      = local.cicd_workflow_var_files.stage_3
     }
@@ -457,10 +483,10 @@ output "team_cicd_repositories" {
 output "teams" {
   description = "Data for the teams stage."
   value = {
-    for k, v in module.branch-teams-team-folder : k => {
+    for k, v in module.branch-prod-team-folder : k => {
       folder          = v.id
-      gcs_bucket      = module.branch-teams-team-gcs[k].name
-      service_account = module.branch-teams-team-sa[k].email
+      gcs_bucket      = module.branch-prod-team-gcs[k].name
+      service_account = module.branch-prod-team-sa[k].email
     }
   }
 }

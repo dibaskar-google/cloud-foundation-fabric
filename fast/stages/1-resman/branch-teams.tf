@@ -18,30 +18,30 @@
 
 # TODO(ludo): add support for CI/CD
 
-module "branch-teams-folder" {
+module "branch-prod-folder" {
   source = "../../../modules/folder"
   count  = var.fast_features.teams ? 1 : 0
   parent = "organizations/${var.organization.id}"
-  name   = "Teams"
+  name   = "Production"
   iam = {
-    "roles/logging.admin"                  = [module.branch-teams-sa.0.iam_email]
-    "roles/owner"                          = [module.branch-teams-sa.0.iam_email]
-    "roles/resourcemanager.folderAdmin"    = [module.branch-teams-sa.0.iam_email]
-    "roles/resourcemanager.projectCreator" = [module.branch-teams-sa.0.iam_email]
-    "roles/compute.xpnAdmin"               = [module.branch-teams-sa.0.iam_email]
+    "roles/logging.admin"                  = [module.branch-prod-sa.0.iam_email]
+    "roles/owner"                          = [module.branch-prod-sa.0.iam_email]
+    "roles/resourcemanager.folderAdmin"    = [module.branch-prod-sa.0.iam_email]
+    "roles/resourcemanager.projectCreator" = [module.branch-prod-sa.0.iam_email]
+    "roles/compute.xpnAdmin"               = [module.branch-prod-sa.0.iam_email]
   }
   tag_bindings = {
-    context = try(
-      module.organization.tag_values["${var.tag_names.context}/teams"].id, null
+    environment = try(
+      module.organization.tag_values["${var.tag_names.environment}/production"].id, null
     )
   }
 }
 
-module "branch-teams-sa" {
+module "branch-prod-sa" {
   source       = "../../../modules/iam-service-account"
   count        = var.fast_features.teams ? 1 : 0
   project_id   = var.automation.project_id
-  name         = "prod-resman-teams-0"
+  name         = "prod-teams-0"
   display_name = "Terraform resman teams service account."
   prefix       = var.prefix
   iam_project_roles = {
@@ -52,39 +52,85 @@ module "branch-teams-sa" {
   }
 }
 
-module "branch-teams-gcs" {
+module "branch-prod-gcs" {
   source        = "../../../modules/gcs"
   count         = var.fast_features.teams ? 1 : 0
   project_id    = var.automation.project_id
-  name          = "prod-resman-teams-0"
+  name          = "prod-teams-0"
   prefix        = var.prefix
   location      = var.locations.gcs
   storage_class = local.gcs_storage_class
   versioning    = true
   iam = {
-    "roles/storage.objectAdmin" = [module.branch-teams-sa.0.iam_email]
+    "roles/storage.objectAdmin" = [module.branch-prod-sa.0.iam_email]
   }
 }
 
+module "branch-dev-folder" {
+  source = "../../../modules/folder"
+  count  = var.fast_features.teams ? 1 : 0
+  parent = "organizations/${var.organization.id}"
+  name   = "Development"
+  iam = {
+    "roles/logging.admin"                  = [module.branch-dev-sa.0.iam_email]
+    "roles/owner"                          = [module.branch-dev-sa.0.iam_email]
+    "roles/resourcemanager.folderAdmin"    = [module.branch-dev-sa.0.iam_email]
+    "roles/resourcemanager.projectCreator" = [module.branch-dev-sa.0.iam_email]
+    "roles/compute.xpnAdmin"               = [module.branch-dev-sa.0.iam_email]
+  }
+  tag_bindings = {
+    environment = try(
+      module.organization.tag_values["${var.tag_names.environment}/development"].id, null
+    )
+  }
+}
 
-module "branch-teams-team-folder" {
+module "branch-dev-sa" {
+  source       = "../../../modules/iam-service-account"
+  count        = var.fast_features.teams ? 1 : 0
+  project_id   = var.automation.project_id
+  name         = "dev-teams-0"
+  display_name = "Terraform resman teams service account."
+  prefix       = var.prefix
+  iam_project_roles = {
+    (var.automation.project_id) = ["roles/serviceusage.serviceUsageConsumer"]
+  }
+  iam_storage_roles = {
+    (var.automation.outputs_bucket) = ["roles/storage.objectAdmin"]
+  }
+}
+
+module "branch-dev-gcs" {
+  source        = "../../../modules/gcs"
+  count         = var.fast_features.teams ? 1 : 0
+  project_id    = var.automation.project_id
+  name          = "dev-teams-0"
+  prefix        = var.prefix
+  location      = var.locations.gcs
+  storage_class = local.gcs_storage_class
+  versioning    = true
+  iam = {
+    "roles/storage.objectAdmin" = [module.branch-dev-sa.0.iam_email]
+  }
+}
+
+module "branch-prod-team-folder" {
   source   = "../../../modules/folder"
   for_each = var.fast_features.teams ? coalesce(var.team_folders, {}) : {}
-  parent   = module.branch-teams-folder.0.id
+  parent   = module.branch-prod-folder.0.id
   name     = each.value.descriptive_name
   iam = {
-    "roles/logging.admin"                  = [module.branch-teams-team-sa[each.key].iam_email]
-    "roles/owner"                          = [module.branch-teams-team-sa[each.key].iam_email]
-    "roles/resourcemanager.folderAdmin"    = [module.branch-teams-team-sa[each.key].iam_email]
-    "roles/resourcemanager.projectCreator" = [module.branch-teams-team-sa[each.key].iam_email]
-    "roles/compute.xpnAdmin"               = [module.branch-teams-team-sa[each.key].iam_email]
+    "roles/owner"                          = [module.branch-prod-team-sa[each.key].iam_email]
+    "roles/resourcemanager.folderAdmin"    = [module.branch-prod-team-sa[each.key].iam_email]
+    "roles/resourcemanager.projectCreator" = [module.branch-prod-team-sa[each.key].iam_email]
+    "roles/compute.xpnAdmin"               = [module.branch-prod-team-sa[each.key].iam_email]
   }
   iam_by_principals = each.value.iam_by_principals == null ? {} : each.value.iam_by_principals
 }
 
 # TODO: move into team's own IaC project
 
-module "branch-teams-team-sa" {
+module "branch-prod-team-sa" {
   source       = "../../../modules/iam-service-account"
   for_each     = var.fast_features.teams ? coalesce(var.team_folders, {}) : {}
   project_id   = var.automation.project_id
@@ -93,7 +139,7 @@ module "branch-teams-team-sa" {
   prefix       = var.prefix
   iam = {
     "roles/iam.serviceAccountTokenCreator" = concat(
-      compact([try(module.branch-teams-team-sa-cicd[each.key].iam_email, null)]),
+      compact([try(module.branch-prod-team-sa-cicd[each.key].iam_email, null)]),
       (
         each.value.impersonation_principals == null
         ? []
@@ -103,7 +149,7 @@ module "branch-teams-team-sa" {
   }
 }
 
-module "branch-teams-team-gcs" {
+module "branch-prod-team-gcs" {
   source        = "../../../modules/gcs"
   for_each      = var.fast_features.teams ? coalesce(var.team_folders, {}) : {}
   project_id    = var.automation.project_id
@@ -113,18 +159,95 @@ module "branch-teams-team-gcs" {
   storage_class = local.gcs_storage_class
   versioning    = true
   iam = {
-    "roles/storage.objectAdmin" = [module.branch-teams-team-sa[each.key].iam_email]
+    "roles/storage.objectAdmin" = [module.branch-prod-team-sa[each.key].iam_email]
   }
 }
 
-# per-team environment folders where project factory SAs can create projects
-
-module "branch-teams-team-dev-folder" {
+module "branch-dev-team-folder" {
   source   = "../../../modules/folder"
   for_each = var.fast_features.teams ? coalesce(var.team_folders, {}) : {}
-  parent   = module.branch-teams-team-folder[each.key].id
+  parent   = module.branch-dev-folder.0.id
+  name     = each.value.descriptive_name
+  iam = {
+    "roles/owner"                          = [module.branch-dev-team-sa[each.key].iam_email]
+    "roles/resourcemanager.folderAdmin"    = [module.branch-dev-team-sa[each.key].iam_email]
+    "roles/resourcemanager.projectCreator" = [module.branch-dev-team-sa[each.key].iam_email]
+    "roles/compute.xpnAdmin"               = [module.branch-dev-team-sa[each.key].iam_email]
+  }
+  iam_by_principals = each.value.iam_by_principals == null ? {} : each.value.iam_by_principals
+}
+
+# TODO: move into team's own IaC project
+
+module "branch-dev-team-sa" {
+  source       = "../../../modules/iam-service-account"
+  for_each     = var.fast_features.teams ? coalesce(var.team_folders, {}) : {}
+  project_id   = var.automation.project_id
+  name         = "dev-teams-${each.key}-0"
+  display_name = "Terraform team ${each.key} service account."
+  prefix       = var.prefix
+  iam = {
+    "roles/iam.serviceAccountTokenCreator" = concat(
+      compact([try(module.branch-prod-team-sa-cicd[each.key].iam_email, null)]),
+      (
+        each.value.impersonation_principals == null
+        ? []
+        : [for g in each.value.impersonation_principals : g]
+      )
+    )
+  }
+}
+
+module "branch-dev-team-gcs" {
+  source        = "../../../modules/gcs"
+  for_each      = var.fast_features.teams ? coalesce(var.team_folders, {}) : {}
+  project_id    = var.automation.project_id
+  name          = "dev-teams-${each.key}-0"
+  prefix        = var.prefix
+  location      = var.locations.gcs
+  storage_class = local.gcs_storage_class
+  versioning    = true
+  iam = {
+    "roles/storage.objectAdmin" = [module.branch-dev-team-sa[each.key].iam_email]
+  }
+}
+
+
+# per-team folders where project factory SAs can create projects
+
+module "branch-prod-teams-folder" {
+  source   = "../../../modules/folder"
+  for_each = var.fast_features.teams ? coalesce(var.team_folders, {}) : {}
+  parent   = module.branch-prod-team-folder[each.key].id
   # naming: environment descriptive name
-  name = "Development"
+  name = "team-a"
+  # environment-wide human permissions on the whole teams environment
+  iam_by_principals = {}
+  iam = {
+    (local.custom_roles.service_project_network_admin) = (
+      local.branch_optional_sa_lists.pf-dev
+    )
+    # remove owner here and at project level if SA does not manage project resources
+    "roles/owner"                          = local.branch_optional_sa_lists.pf-prod
+    "roles/logging.admin"                  = local.branch_optional_sa_lists.pf-prod
+    "roles/resourcemanager.folderAdmin"    = local.branch_optional_sa_lists.pf-prod
+    "roles/resourcemanager.projectCreator" = local.branch_optional_sa_lists.pf-prod
+    "roles/resourcemanager.folderViewer"   = local.branch_optional_r_sa_lists.pf-prod
+    "roles/viewer"                         = local.branch_optional_r_sa_lists.pf-prod
+  }
+  tag_bindings = {
+    context = try(
+      module.organization.tag_values["${var.tag_names.context}/teams"].id, null
+    )
+  }
+}
+
+module "branch-dev-teams-folder" {
+  source   = "../../../modules/folder"
+  for_each = var.fast_features.teams ? coalesce(var.team_folders, {}) : {}
+  parent   = module.branch-dev-team-folder[each.key].id
+  # naming: environment descriptive name
+  name = "team-a"
   # environment-wide human permissions on the whole teams environment
   iam_by_principals = {}
   iam = {
@@ -140,35 +263,8 @@ module "branch-teams-team-dev-folder" {
     "roles/viewer"                         = local.branch_optional_r_sa_lists.pf-dev
   }
   tag_bindings = {
-    environment = try(
-      module.organization.tag_values["${var.tag_names.environment}/development"].id, null
-    )
-  }
-}
-
-module "branch-teams-team-prod-folder" {
-  source   = "../../../modules/folder"
-  for_each = var.fast_features.teams ? coalesce(var.team_folders, {}) : {}
-  parent   = module.branch-teams-team-folder[each.key].id
-  # naming: environment descriptive name
-  name = "Production"
-  # environment-wide human permissions on the whole teams environment
-  iam_by_principals = {}
-  iam = {
-    (local.custom_roles.service_project_network_admin) = (
-      local.branch_optional_sa_lists.pf-prod
-    )
-    # remove owner here and at project level if SA does not manage project resources
-    "roles/owner"                          = local.branch_optional_sa_lists.pf-prod
-    "roles/logging.admin"                  = local.branch_optional_sa_lists.pf-prod
-    "roles/resourcemanager.folderAdmin"    = local.branch_optional_sa_lists.pf-prod
-    "roles/resourcemanager.projectCreator" = local.branch_optional_sa_lists.pf-prod
-    "roles/resourcemanager.folderViewer"   = local.branch_optional_r_sa_lists.pf-prod
-    "roles/viewer"                         = local.branch_optional_r_sa_lists.pf-prod
-  }
-  tag_bindings = {
-    environment = try(
-      module.organization.tag_values["${var.tag_names.environment}/production"].id, null
+    context = try(
+      module.organization.tag_values["${var.tag_names.context}/teams"].id, null
     )
   }
 }
